@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+/build
+imgui.ini
+build_output.txt
