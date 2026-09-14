@@ -31,8 +31,8 @@ Mesh TerrainMeshGenerator::generatePatch(const NoiseGenerator& noise,
     TerrainPipeline pipeline;
     const TerrainHeightField heightField = pipeline.run(noise, origin, size, resolution);
 
-    const int pointsPerAxis = heightField.pointsPerAxis;
-    const float cellSize = heightField.cellSize;
+    const int pointsPerAxis     = heightField.pointsPerAxis;
+    const float cellSize        = heightField.cellSize;
 
     std::vector<Vertex> vertices;
     vertices.reserve(static_cast<size_t>(pointsPerAxis) * pointsPerAxis);

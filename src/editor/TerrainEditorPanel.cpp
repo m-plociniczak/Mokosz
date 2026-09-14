@@ -8,25 +8,44 @@
 #include <limits>
 #include <vector>
 
-TerrainEditorPanel::TerrainEditorPanel(std::shared_ptr<Mesh> terrainMesh,
+TerrainEditorPanel::TerrainEditorPanel(std::vector<std::shared_ptr<Mesh>>& terrainChunkMeshes,
                                         const glm::vec2& origin,
                                         float size,
                                         int resolution,
+                                        const WorldGenerationParams& worldGenerationParams,
+                                        const TerrainWorldGenerator& worldGenerator,
+                                        const std::shared_ptr<ChunkBoundaryRenderer>& chunkBoundaryRenderer,
                                         const NoiseGenerator::Settings& initialSettings)
-    : m_terrainMesh(std::move(terrainMesh))
+    : m_terrainChunkMeshes(terrainChunkMeshes)
     , m_noise(initialSettings)
     , m_settings(initialSettings)
     , m_origin(origin)
     , m_size(size)
     , m_resolution(resolution)
+    , m_params(worldGenerationParams)
+    , m_worldGenerator(worldGenerator)
+    , m_chunkBoundaryRenderer(chunkBoundaryRenderer)
 {
-    regenerate();
+    //regenerate();
 }
 
 void TerrainEditorPanel::regenerate()
 {
     m_noise.setSettings(m_settings);
-    *m_terrainMesh = TerrainMeshGenerator::generatePatch(m_noise, m_origin, m_size, m_resolution);
+
+    std::vector<TerrainHeightField> heightFields;
+    std::vector<Mesh> chunkMeshes = m_worldGenerator.sliceInChunks(m_noise, m_params, &heightFields);
+    
+    if (m_chunkBoundaryRenderer)
+        m_chunkBoundaryRenderer->build(heightFields);
+
+
+    for (int i = 0; i < m_params.chunksX *  m_params.chunksX; i++)
+    {
+        *m_terrainChunkMeshes[i] = std::move(chunkMeshes[i]);
+    }
+    
+
     refreshHeightMapTexture();
 }
 
@@ -66,16 +85,23 @@ void TerrainEditorPanel::refreshHeightMapTexture()
 
 void TerrainEditorPanel::drawNested()
 {
-    ImGui::SliderInt("Resolution", &m_resolution, 16, 512);
-    ImGui::SliderInt("Octaves", &m_settings.octaves, 1, 32);
-    ImGui::SliderFloat("Persistence", &m_settings.persistence, 0.1f, 1.0f);
-    ImGui::SliderFloat("Lacunarity", &m_settings.lacunarity, 1.0f, 4.0f);
-    ImGui::SliderFloat("Scale", &m_settings.scale, 8.0f, 512.0f);
-    ImGui::SliderFloat("Amplitude", &m_settings.amplitude, 1.0f, 100.0f);
-    ImGui::SliderFloat("Island radius", &m_settings.islandRadius, 0.0f, 200.0f);
-    ImGui::SliderFloat("Edge falloff", &m_settings.edgeFalloff, 0.0f, 100.0f);
-    ImGui::SliderFloat("Edge drop", &m_settings.edgeDrop, -50.0f, 50.0f);
-    ImGui::SliderFloat("Gradient trick strength", &m_settings.gradientTrickStrength, 0.0f, 1.0f);
+    ImGui::Begin("Terain generator");
+
+    ImGui::SliderInt(       "Resolution",               &m_params.chunkResolution,          8, 512);
+    ImGui::SliderFloat(     "Chunk world size",         &m_params.chunkWorldSize,           1, 1000);
+    ImGui::SliderInt(       "Chunks per axis",          &m_params.chunksX,                  1, 64);
+    ImGui::SliderFloat2(     "World orgin",             &m_params.worldOrigin.x,            -100, 100);
+    ImGui::SliderInt(       "Octaves",                  &m_settings.octaves,                1, 32);
+    ImGui::SliderFloat(     "Persistence",              &m_settings.persistence,            0.1f, 1.0f);
+    ImGui::SliderFloat(     "Lacunarity",               &m_settings.lacunarity,             1.0f, 4.0f);
+    ImGui::SliderFloat(     "Scale",                    &m_settings.scale,                  8.0f, 512.0f);
+    ImGui::SliderFloat(     "Amplitude",                &m_settings.amplitude,              1.0f, 100.0f);
+    ImGui::SliderFloat(     "Island radius",            &m_settings.islandRadius,           0.0f, 200.0f);
+    ImGui::SliderFloat(     "Edge falloff",             &m_settings.edgeFalloff,            0.0f, 100.0f);
+    ImGui::SliderFloat(     "Edge drop",                &m_settings.edgeDrop,               -50.0f, 50.0f);
+    ImGui::SliderFloat(     "Gradient trick strength",  &m_settings.gradientTrickStrength,  0.0f, 1.0f);
+
+    m_params.chunksZ = m_params.chunksX;
 
     int noiseTypeIndex = static_cast<int>(m_settings.noiseType);
     if (ImGui::Combo("Noise type", &noiseTypeIndex,
@@ -92,13 +118,20 @@ void TerrainEditorPanel::drawNested()
 
     if (m_settings.enableErosion)
     {
-        ImGui::SliderInt("Iterations", &m_settings.iterations, 0, 10000000);
-        ImGui::SliderInt("Droplet lifetime", &m_settings.dropletLifetime, 4, 60);
-        ImGui::SliderFloat("Brush radius", &m_settings.brushRadius, 1.0f, 8.0f);
-        ImGui::SliderFloat("Erosion strength", &m_settings.erosionStrength, 0.0f, 2.0f);
+        ImGui::SliderInt("Iterations",          &m_settings.iterations, 0, 10000000);
+        ImGui::SliderInt("Droplet lifetime",    &m_settings.dropletLifetime, 4, 60);
+        ImGui::SliderFloat("Brush radius",      &m_settings.brushRadius, 1.0f, 8.0f);
+        ImGui::SliderFloat("Erosion strength",  &m_settings.erosionStrength, 0.0f, 2.0f);
         ImGui::SliderFloat("Sediment capacity", &m_settings.sedimentCapacity, 0.0f, 2.0f);
-        ImGui::SliderFloat("Deposition speed", &m_settings.depositionSpeed, 0.0f, 0.5f);
-        ImGui::SliderFloat("Evaporation rate", &m_settings.evaporationRate, 0.0f, 0.2f);
+        ImGui::SliderFloat("Deposition speed",  &m_settings.depositionSpeed, 0.0f, 0.5f);
+        ImGui::SliderFloat("Evaporation rate",  &m_settings.evaporationRate, 0.0f, 0.2f);
+        ImGui::SliderFloat("Interia",           &m_settings.inertia, 0.0f, 1.0f);
+
+    }
+
+    if (m_chunkBoundaryRenderer)
+    {
+        ImGui::Checkbox("Show chunk boundaries", &m_chunkBoundaryRenderer->visible);
     }
 
     if (ImGui::Button("Regenerate terrain"))
@@ -114,6 +147,8 @@ void TerrainEditorPanel::drawNested()
             static_cast<float>(rand() % 10000));
         regenerate();
     }
+
+    ImGui::End();
 }
 
 void TerrainEditorPanel::draw()

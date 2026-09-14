@@ -22,9 +22,11 @@
 #include <terrain/NoiseGenerator.h>
 #include <terrain/TerrainMeshGenerator.h>
 #include <terrain/TerrainMaterial.h>
+#include <terrain/TerrainWorldGenerator.hpp>
 
 #include <editor/EditorGUI.h>
 #include <editor/TerrainEditorPanel.h>
+#include <editor/ChunkBoundaryRenderer.hpp>
 
 
 int main()
@@ -74,47 +76,76 @@ int main()
         basicMaterial->roughness = 0.05f;
         basicMaterial->ao = 1.0f;
         
-        //Terain generation
+        //========================================= Terain generation =========================================//
+        WorldGenerationParams params;
+        params.chunksX          = 6;
+        params.chunksZ          = 6; 
+        params.chunkResolution  = 128;
+        params.chunkWorldSize   = 100.0f;
+        params.worldOrigin      = glm::vec2(-200.f, -200.f);
+
+        TerrainWorldGenerator worldGenerator;
+        
         NoiseGenerator terrainNoise;
         std::shared_ptr<Texture> terrainTexture = std::make_shared<Texture>("assets/textures/terrain.png");
         std::shared_ptr<Texture> sandTexture  = terrainTexture;
         std::shared_ptr<Texture> grassTexture = terrainTexture;
         std::shared_ptr<Texture> rockTexture  = std::make_shared<Texture>("assets/textures/rock.jpg");
         std::shared_ptr<Texture> snowTexture  = std::make_shared<Texture>("assets/textures/snow.jpg");
+        /*
         Mesh terrainMesh = TerrainMeshGenerator::generatePatch(
             terrainNoise,
             glm::vec2(-200.0f, -200.0f),
             400.0f,
             128,
             std::vector<std::shared_ptr<Texture>>{ terrainTexture });
-        std::size_t terrainMeshIndex = scene.addMesh(std::make_shared<Mesh>(std::move(terrainMesh)));
-        auto terrainMaterial = std::make_shared<TerrainMaterial>();
-        terrainMaterial->name = "Terrain_Material";
-        terrainMaterial->albedo = glm::vec3(1.0f, 1.0f, 1.0f);
-        terrainMaterial->metallic = 0.0f;
-        terrainMaterial->roughness = 0.9f;
-        terrainMaterial->sandTexture = sandTexture;
-        terrainMaterial->grassTexture = grassTexture;
-        terrainMaterial->rockTexture = rockTexture;
-        terrainMaterial->snowTexture = snowTexture;
+        */
+        //Mesh terrainMesh = worldGenerator.generateMasterMesh(terrainNoise, params, std::vector<std::shared_ptr<Texture>>{terrainTexture});
 
-        scene.addWorldObject(WorldObject(
-                            scene.getMesh(terrainMeshIndex),
-                            scene.getShader(terrainShaderIndex),
-                            "Terrain",
-                            Transform(glm::vec3(0.0f, -5.0f, 0.0f)),
-                            terrainMaterial,
-                            WorldObject::SuperType::Terrain));
+        std::vector<std::shared_ptr<Mesh>> terainPtrs;
+        std::vector<TerrainHeightField>    terainHeightFields;
+        std::vector<Mesh> terrainMeshes = worldGenerator.sliceInChunks(terrainNoise, params,&terainHeightFields);
+
+        for (Mesh& terrainMesh : terrainMeshes)
+        {
+            std::size_t terrainMeshIndex = scene.addMesh(std::make_shared<Mesh>(std::move(terrainMesh)));
+            auto terrainMaterial = std::make_shared<TerrainMaterial>();
+            terainPtrs.push_back(scene.getMesh(terrainMeshIndex));
+            terrainMaterial->name = "Terrain_Material";
+            terrainMaterial->albedo = glm::vec3(1.0f, 1.0f, 1.0f);
+            terrainMaterial->metallic = 0.0f;
+            terrainMaterial->roughness = 0.9f;
+            terrainMaterial->sandTexture = sandTexture;
+            terrainMaterial->grassTexture = grassTexture;
+            terrainMaterial->rockTexture = rockTexture;
+            terrainMaterial->snowTexture = snowTexture;
+
+            scene.addWorldObject(WorldObject(
+                                scene.getMesh(terrainMeshIndex),
+                                scene.getShader(terrainShaderIndex),
+                                "Terrain",
+                                Transform(glm::vec3(0.0f, -5.0f, 0.0f)),
+                                terrainMaterial,
+                                WorldObject::SuperType::Terrain));
+        }
+        
+
+        
 
 
-
+        //========================================= I/O and GUI =========================================//
         KeyInput keyInput(std::vector<int>{GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_Q, GLFW_KEY_E, GLFW_KEY_Z, GLFW_KEY_X, GLFW_KEY_LEFT_SHIFT, GLFW_KEY_SPACE});
         KeyInput::setupKeyInputs(window);
 
         std::shared_ptr<Camera> camera = std::make_shared<Camera>(60.0f, aspectRatio, 0.1f, 50000.0f, glm::vec3(0.0f, 1.5f, 3.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), keyInput);
         scene.setCamera(camera);
         
-        TerrainEditorPanel terrainEditor(scene.getMesh(terrainMeshIndex), glm::vec2(-100.0f, -100.0f), 200.0f, 128);
+        std::shared_ptr<Shader> debugLineShader                         = std::make_shared<Shader>("assets/shaders/debug_line.vert", "assets/shaders/debug_line.frag");
+        std::shared_ptr<ChunkBoundaryRenderer> chunkBoundaryRenderer    = std::make_shared<ChunkBoundaryRenderer>(debugLineShader);
+        chunkBoundaryRenderer->build(terainHeightFields);
+        chunkBoundaryRenderer->visible = true;
+
+        TerrainEditorPanel terrainEditor(terainPtrs, glm::vec2(-100.0f, -100.0f), 200.0f, 128, params, worldGenerator, chunkBoundaryRenderer);
         EditorGUI editorGUI(window.handle(), &terrainEditor);
         
         //HDRTexture hdrPanorama("assets/hdri/studio.hdr");
@@ -140,12 +171,15 @@ int main()
         const glm::vec3 clearColor(0.05f, 0.07f, 0.10f);
 
 
+        //========================================= APP loop =========================================//
+
         while (window.isOpen())
         {
             float time = static_cast<float>(glfwGetTime());
 
             editorGUI.beginFrame();
             editorGUI.draw(scene);
+            terrainEditor.drawNested();
 
             glClearColor(clearColor.r, clearColor.g, clearColor.b, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -172,6 +206,7 @@ int main()
             
 
             scene.RenderScene();
+            chunkBoundaryRenderer->draw(camera->getViewMatrix(), camera->getProjectionMatrix());
             editorGUI.render();
             window.swapBuffersAndPollEvents();
         }

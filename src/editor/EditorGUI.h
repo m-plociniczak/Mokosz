@@ -26,7 +26,6 @@ private:
     void drawObjectList(Scean& scene);
     void drawTransformEditor(WorldObject& object);
     void drawMaterialEditor(WorldObject& object);
-    void drawTerrainPanel(WorldObject& object);
     void drawLightEditor(std::vector<Light>& lights);
 
     bool m_initialized = false;

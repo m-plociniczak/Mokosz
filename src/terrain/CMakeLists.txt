@@ -8,6 +8,7 @@ add_library(PBR_Terrain OBJECT
     TerrainMeshGenerator.cpp
     TerrainMaterial.cpp
     ApplyAmplitude.cpp  
+    TerrainWorldGenerator.cpp
 )
 
 target_include_directories(PBR_Terrain

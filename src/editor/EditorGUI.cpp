@@ -142,11 +142,6 @@ void EditorGUI::drawObjectList(Scean& scene)
                 ImGui::Unindent();
             }
 
-            if (object.superType() == WorldObject::SuperType::Terrain)
-            {
-                drawTerrainPanel(object);
-            }
-
             ImGui::Unindent();
         }
 
@@ -175,26 +170,7 @@ void EditorGUI::drawTransformEditor(WorldObject& object)
         transform.setScale(scale);
 }
 
-void EditorGUI::drawTerrainPanel(WorldObject& object)
-{
-    if (!m_terrainEditorPanel)
-    {
-        if (ImGui::CollapsingHeader("Terrain Panel"))
-        {
-            ImGui::Indent();
-            ImGui::TextDisabled("Terrain editor panel unavailable.");
-            ImGui::Unindent();
-        }
-        return;
-    }
 
-    if (ImGui::CollapsingHeader("Terrain Panel"))
-    {
-        ImGui::Indent();
-        m_terrainEditorPanel->drawNested();
-        ImGui::Unindent();
-    }
-}
 
 void EditorGUI::drawMaterialEditor(WorldObject& object)
 {

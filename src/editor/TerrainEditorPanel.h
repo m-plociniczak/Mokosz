@@ -4,19 +4,19 @@
 
 #include "../terrain/NoiseGenerator.h"
 #include "../renderer/Mesh.h"
+#include <terrain/TerrainWorldGenerator.hpp>
+#include "ChunkBoundaryRenderer.hpp"
 
-// Self-contained ImGui panel for live-tweaking terrain noise parameters.
-// Owns the NoiseGenerator and its Settings; regenerates the terrain's
-// Mesh in place (via move-assignment) whenever the user changes a value
-// or presses "Regenerate", so the WorldObject holding this mesh needs no
-// changes -- it just keeps drawing whatever the shared_ptr points to.
 class TerrainEditorPanel
 {
 public:
-    TerrainEditorPanel(std::shared_ptr<Mesh> terrainMesh,
+    TerrainEditorPanel(std::vector<std::shared_ptr<Mesh>>& terrainChunkMeshes,
                         const glm::vec2& origin,
                         float size,
                         int resolution,
+                        const WorldGenerationParams& WorldGenerationParams,
+                        const TerrainWorldGenerator& worldGenerator,
+                        const std::shared_ptr<ChunkBoundaryRenderer>& chunkBoundaryRenderer,
                         const NoiseGenerator::Settings& initialSettings = NoiseGenerator::Settings());
 
     // Render the terrain editor controls in a standalone ImGui window.
@@ -27,8 +27,12 @@ public:
 
 private:
     std::shared_ptr<Mesh> m_terrainMesh;
+    std::shared_ptr<ChunkBoundaryRenderer> m_chunkBoundaryRenderer;
+    std::vector<std::shared_ptr<Mesh>> m_terrainChunkMeshes;
     NoiseGenerator m_noise;
     NoiseGenerator::Settings m_settings;
+    WorldGenerationParams m_params;
+    TerrainWorldGenerator m_worldGenerator;
 
     glm::vec2 m_origin;
     float m_size;

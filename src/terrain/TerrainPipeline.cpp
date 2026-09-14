@@ -11,7 +11,7 @@
 TerrainPipeline::TerrainPipeline()
 {
     m_stages.push_back(std::make_shared<CreateNoiseMapObject>());
-    m_stages.push_back(std::make_shared<ApplyIslandMask>());
+    //m_stages.push_back(std::make_shared<ApplyIslandMask>());
     m_stages.push_back(std::make_shared<NomralizeHeightMap>());
     m_stages.push_back(std::make_shared<HydraulicErosion>());
     m_stages.push_back(std::make_shared<ApplyAmplitude>());
