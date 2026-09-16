@@ -18,8 +18,7 @@ class WorldObject
             Terrain
         };
 
-        // material defaults to nullptr: objects using a plain (non-PBR) shader
-        // like basic.vert/frag simply don't get material/light uniforms set.
+
         WorldObject(std::shared_ptr<Mesh> mesh,
                     std::shared_ptr<Shader> shader,
                     const std::string& name = "NEW_OBJECT",
@@ -37,9 +36,8 @@ class WorldObject
         inline void setSuperType(SuperType superType) { m_superType = superType; }
         inline SuperType superType() const { return m_superType; }
 
-        // cameraPos and lights are only used if this object has a Material
-        // assigned (i.e. it's drawn with a PBR-style shader). Objects without
-        // a material (plain-colored basic shader) ignore both parameters.
+        inline void setMesh(std::shared_ptr<Mesh> mesh) {m_mesh = mesh;}
+
         void draw(const glm::mat4& projection,
                   const glm::mat4& view,
                   const glm::vec3& cameraPos,

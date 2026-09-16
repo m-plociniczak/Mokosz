@@ -9,6 +9,7 @@ add_library(PBR_Terrain OBJECT
     TerrainMaterial.cpp
     ApplyAmplitude.cpp  
     TerrainWorldGenerator.cpp
+    TerrainLodManager.cpp
 )
 
 target_include_directories(PBR_Terrain
@@ -20,4 +21,5 @@ target_include_directories(PBR_Terrain
 target_link_libraries(PBR_Terrain
     PUBLIC
         glm::glm
+        glfw
 )

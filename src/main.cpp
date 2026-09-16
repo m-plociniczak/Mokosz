@@ -4,10 +4,12 @@
 
 #include <iostream>
 #include <exception>
+#include <vector>
 
 #include <core/Window.h>
 #include <core/Camera.hpp>
 #include <core/KeyInput.hpp>
+
 #include <core/ObjectLoader.hpp>
 #include <core/Scean.hpp>
 
@@ -23,10 +25,11 @@
 #include <terrain/TerrainMeshGenerator.h>
 #include <terrain/TerrainMaterial.h>
 #include <terrain/TerrainWorldGenerator.hpp>
+#include <terrain/TerrainHeightField.h>
+#include <terrain/TerrainLodManager.hpp>
 
 #include <editor/EditorGUI.h>
 #include <editor/TerrainEditorPanel.h>
-#include <editor/ChunkBoundaryRenderer.hpp>
 
 
 int main()
@@ -58,10 +61,6 @@ int main()
         std::size_t cubeMeshIndex    = scene.addMesh(std::make_shared<Mesh>(Mesh::createColoredCube()));
         std::size_t sphereMeshIndex  = scene.addMesh(std::make_shared<Mesh>(Mesh::createUVSphere(1.0f, 32, 32)));
 
-
-        //std::size_t cube1Index = scene.addWorldObject(WorldObject(scene.getMesh(cubeMeshIndex), scene.getShader(basicShaderIndex), Transform(glm::vec3(2.0f, 0.0f, -1.5f))));
-        //std::size_t cube2Index = scene.addWorldObject(WorldObject(scene.getMesh(cubeMeshIndex), scene.getShader(basicShaderIndex), Transform(glm::vec3(-2.0f, 0.0f, -1.5f))));
-
         std::shared_ptr<Material> sphereMaterial = std::make_shared<Material>();
         sphereMaterial->name = "PBR_Material";
         sphereMaterial->albedo = glm::vec3(0.75f, 0.75f, 0.75f);
@@ -75,79 +74,110 @@ int main()
         basicMaterial->metallic = 0.9f;
         basicMaterial->roughness = 0.05f;
         basicMaterial->ao = 1.0f;
-        
-        //========================================= Terain generation =========================================//
-        WorldGenerationParams params;
-        params.chunksX          = 6;
-        params.chunksZ          = 6; 
-        params.chunkResolution  = 128;
-        params.chunkWorldSize   = 100.0f;
-        params.worldOrigin      = glm::vec2(-200.f, -200.f);
 
-        TerrainWorldGenerator worldGenerator;
-        
+        // ---------------------------------------------------------------
+        // Terrain generation - chunki + LOD
+        // ---------------------------------------------------------------
         NoiseGenerator terrainNoise;
         std::shared_ptr<Texture> terrainTexture = std::make_shared<Texture>("assets/textures/terrain.png");
         std::shared_ptr<Texture> sandTexture  = terrainTexture;
         std::shared_ptr<Texture> grassTexture = terrainTexture;
         std::shared_ptr<Texture> rockTexture  = std::make_shared<Texture>("assets/textures/rock.jpg");
         std::shared_ptr<Texture> snowTexture  = std::make_shared<Texture>("assets/textures/snow.jpg");
-        /*
-        Mesh terrainMesh = TerrainMeshGenerator::generatePatch(
-            terrainNoise,
-            glm::vec2(-200.0f, -200.0f),
-            400.0f,
-            128,
+
+        auto terrainMaterial = std::make_shared<TerrainMaterial>();
+        terrainMaterial->name = "Terrain_Material";
+        terrainMaterial->albedo = glm::vec3(1.0f, 1.0f, 1.0f);
+        terrainMaterial->metallic = 0.0f;
+        terrainMaterial->roughness = 0.9f;
+        terrainMaterial->sandTexture = sandTexture;
+        terrainMaterial->grassTexture = grassTexture;
+        terrainMaterial->rockTexture = rockTexture;
+        terrainMaterial->snowTexture = snowTexture;
+
+        WorldGenerationParams worldParams;
+        worldParams.chunksX = 7;
+        worldParams.chunksZ = 7;
+        worldParams.chunkResolution = 256;   
+        worldParams.chunkWorldSize = 100.0f;
+        worldParams.worldOrigin = glm::vec2(-200.0f, -200.0f); 
+        std::vector<int> lodStrides = { 1, 4, 8, 16};
+
+        TerrainWorldGenerator terrainWorldGenerator;
+
+        std::vector<TerrainHeightField> chunkHeightFields;
+        auto chunkLodMeshesRaw = terrainWorldGenerator.sliceInChunksWithLods(
+            terrainNoise, worldParams, lodStrides, &chunkHeightFields,
             std::vector<std::shared_ptr<Texture>>{ terrainTexture });
-        */
-        //Mesh terrainMesh = worldGenerator.generateMasterMesh(terrainNoise, params, std::vector<std::shared_ptr<Texture>>{terrainTexture});
 
-        std::vector<std::shared_ptr<Mesh>> terainPtrs;
-        std::vector<TerrainHeightField>    terainHeightFields;
-        std::vector<Mesh> terrainMeshes = worldGenerator.sliceInChunks(terrainNoise, params,&terainHeightFields);
+        std::vector<ChunkLodEntry> chunkLodEntries;
+        chunkLodEntries.reserve(chunkLodMeshesRaw.size());
 
-        for (Mesh& terrainMesh : terrainMeshes)
+    
+        std::vector<std::shared_ptr<Mesh>> lod0MeshesForEditor;
+        lod0MeshesForEditor.reserve(chunkLodMeshesRaw.size());
+
+        for (std::size_t i = 0; i < chunkLodMeshesRaw.size(); ++i)
         {
-            std::size_t terrainMeshIndex = scene.addMesh(std::make_shared<Mesh>(std::move(terrainMesh)));
-            auto terrainMaterial = std::make_shared<TerrainMaterial>();
-            terainPtrs.push_back(scene.getMesh(terrainMeshIndex));
-            terrainMaterial->name = "Terrain_Material";
-            terrainMaterial->albedo = glm::vec3(1.0f, 1.0f, 1.0f);
-            terrainMaterial->metallic = 0.0f;
-            terrainMaterial->roughness = 0.9f;
-            terrainMaterial->sandTexture = sandTexture;
-            terrainMaterial->grassTexture = grassTexture;
-            terrainMaterial->rockTexture = rockTexture;
-            terrainMaterial->snowTexture = snowTexture;
+            ChunkLodEntry entry;
+            entry.lodMeshes.reserve(chunkLodMeshesRaw[i].size());
 
-            scene.addWorldObject(WorldObject(
-                                scene.getMesh(terrainMeshIndex),
+            for (auto& mesh : chunkLodMeshesRaw[i])
+            {
+                entry.lodMeshes.push_back(std::make_shared<Mesh>(std::move(mesh)));
+            }
+
+            const TerrainHeightField& hf = chunkHeightFields[i];
+            const float chunkSize = static_cast<float>(hf.pointsPerAxis - 1) * hf.cellSize;
+            entry.boundsCenter = glm::vec3(hf.origin.x + chunkSize * 0.5f, 0.0f, hf.origin.y + chunkSize * 0.5f);
+            entry.boundsRadius = chunkSize * 0.7071f;
+
+            std::size_t meshIndex = scene.addMesh(entry.lodMeshes[0]); // start: najwyższy detal (LOD0)
+            std::size_t objectIndex = scene.addWorldObject(WorldObject(
+                                scene.getMesh(meshIndex),
                                 scene.getShader(terrainShaderIndex),
-                                "Terrain",
+                                "Terrain_chunk_" + std::to_string(i),
                                 Transform(glm::vec3(0.0f, -5.0f, 0.0f)),
                                 terrainMaterial,
                                 WorldObject::SuperType::Terrain));
+
+            entry.worldObjectIndex = objectIndex;
+            lod0MeshesForEditor.push_back(entry.lodMeshes[0]);
+            chunkLodEntries.push_back(std::move(entry));
         }
-        
 
-        
+        TerrainLodManager terrainLodManager;
+        terrainLodManager.lodDistances = { 100.0f, 200.0f, 400.0f }; // dostrój do skali swojego świata
+        terrainLodManager.hysteresisMargin = 20.0f;
+        terrainLodManager.setChunks(std::move(chunkLodEntries));
 
-
-        //========================================= I/O and GUI =========================================//
-        KeyInput keyInput(std::vector<int>{GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_Q, GLFW_KEY_E, GLFW_KEY_Z, GLFW_KEY_X, GLFW_KEY_LEFT_SHIFT, GLFW_KEY_SPACE});
+        // ---------------------------------------------------------------
+        // Input: klawiatura, mysz, kamera FPS
+        // ---------------------------------------------------------------
+        KeyInput keyInput(std::vector<int>{
+            GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D,
+            GLFW_KEY_LEFT_SHIFT, GLFW_KEY_SPACE, GLFW_KEY_TAB});
         KeyInput::setupKeyInputs(window);
 
-        std::shared_ptr<Camera> camera = std::make_shared<Camera>(60.0f, aspectRatio, 0.1f, 50000.0f, glm::vec3(0.0f, 1.5f, 3.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), keyInput);
-        scene.setCamera(camera);
-        
-        std::shared_ptr<Shader> debugLineShader                         = std::make_shared<Shader>("assets/shaders/debug_line.vert", "assets/shaders/debug_line.frag");
-        std::shared_ptr<ChunkBoundaryRenderer> chunkBoundaryRenderer    = std::make_shared<ChunkBoundaryRenderer>(debugLineShader);
-        chunkBoundaryRenderer->build(terainHeightFields);
-        chunkBoundaryRenderer->visible = true;
+        //MouseInput mouseInput;
+        //MouseInput::setupMouseInput(window);
 
-        TerrainEditorPanel terrainEditor(terainPtrs, glm::vec2(-100.0f, -100.0f), 200.0f, 128, params, worldGenerator, chunkBoundaryRenderer);
-        EditorGUI editorGUI(window.handle(), &terrainEditor);
-        
+        std::shared_ptr<Camera> camera = std::make_shared<Camera>(
+            60.0f, aspectRatio, 0.1f, 50000.0f,
+            glm::vec3(0.0f, 1.5f, 3.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f),
+            keyInput);
+        scene.setCamera(camera);
+
+        // UWAGA: TerrainEditorPanel na razie widzi tylko LOD0 każdego chunku (patrz uwaga na
+        // górze odpowiedzi) - "Regenerate world" odświeży wygląd terenu, ale nie odtworzy
+        // poprawnie poziomów LOD1-3, dopóki panel nie zostanie zrefaktoryzowany pod sliceInChunksWithLods.
+        //TerrainEditorPanel terrainEditor(
+        //    terrai
+        //    worldParams,
+        //    std::vector<std::shared_ptr<Texture>>{ terrainTexture });
+
+        EditorGUI editorGUI(window.handle());
+
         //HDRTexture hdrPanorama("assets/hdri/studio.hdr");
         HDRTexture hdrPanorama("assets/hdri/EveningSkyHDRI046B_4K_TONEMAPPED.jpg");
         std::unique_ptr<Cubemap> envCubemap     = IBLGenerator::equirectangularToCubemap(hdrPanorama, 512);
@@ -167,19 +197,27 @@ int main()
 
         auto skyboxShader = std::make_shared<Shader>("assets/shaders/skybox.vert", "assets/shaders/skybox.frag");
         Mesh skyboxCube   = Mesh::createColoredCube();
-        
+
         const glm::vec3 clearColor(0.05f, 0.07f, 0.10f);
 
-
-        //========================================= APP loop =========================================//
+        bool cursorCaptured = true;
+        bool tabWasPressed = false;
 
         while (window.isOpen())
         {
             float time = static_cast<float>(glfwGetTime());
 
+            // Tab przełącza między sterowaniem kamerą (kursor schowany) a UI (kursor widoczny)
+            bool tabIsPressed = keyInput.isKeyPressed(GLFW_KEY_TAB);
+            if (tabIsPressed && !tabWasPressed)
+            {
+                cursorCaptured = !cursorCaptured;
+                glfwSetInputMode(window.handle(), GLFW_CURSOR, cursorCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+            }
+            tabWasPressed = tabIsPressed;
+
             editorGUI.beginFrame();
             editorGUI.draw(scene);
-            terrainEditor.drawNested();
 
             glClearColor(clearColor.r, clearColor.g, clearColor.b, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -191,29 +229,29 @@ int main()
             envCubemap->bind(0);
             skyboxShader->setInt("uEnvironmentMap", 0);
             skyboxCube.draw();
-            glDepthFunc(GL_LESS); 
+            glDepthFunc(GL_LESS);
 
             irradianceMap->bind(5);
             prefilterMap->bind(6);
             brdfLUT.bind(7);
 
-            //scene.getWorldObject(cube1Index).transform().setRotation(glm::vec3( time * 2.0f,  time * 50.0f,  time * 10.0f));
-            //scene.getWorldObject(cube2Index).transform().setRotation(glm::vec3(-time * 2.0f, -time * 50.0f, -time * 10.0f));
-            //scene.getWorldObject(sphereIndex).transform().setRotation(glm::vec3(0.0f        ,  time * 50.0f,          0.0f));
+            if (cursorCaptured)
+            {
+                camera->update();
+            }
 
-
-            camera->update();
-            
+            terrainLodManager.update(camera->getPosition(), scene);
 
             scene.RenderScene();
-            chunkBoundaryRenderer->draw(camera->getViewMatrix(), camera->getProjectionMatrix());
             editorGUI.render();
+
+            //mouseInput.endFrame(); // reset delty myszy - MUSI być po camera->update(), przed pollEvents
             window.swapBuffersAndPollEvents();
         }
     }
     catch (const std::exception& e)
     {
-        std::cerr <<"\e[1m" <<  "Fatal error: " << "\e[0m" << e.what() << std::endl;
+        std::cerr << "\e[1m" << "Fatal error: " << "\e[0m" << e.what() << std::endl;
         return -1;
     }
 
