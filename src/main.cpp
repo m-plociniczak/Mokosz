@@ -9,7 +9,7 @@
 #include <core/Window.h>
 #include <core/Camera.hpp>
 #include <core/KeyInput.hpp>
-
+#include <core/MouseInput.hpp>
 #include <core/ObjectLoader.hpp>
 #include <core/Scean.hpp>
 
@@ -30,6 +30,7 @@
 
 #include <editor/EditorGUI.h>
 #include <editor/TerrainEditorPanel.h>
+#include <editor/ChunkBoundaryRenderer.hpp>
 
 
 int main()
@@ -76,7 +77,7 @@ int main()
         basicMaterial->ao = 1.0f;
 
         // ---------------------------------------------------------------
-        // Terrain generation - chunki + LOD
+        // Terrain generation - chunks + LOD
         // ---------------------------------------------------------------
         NoiseGenerator terrainNoise;
         std::shared_ptr<Texture> terrainTexture = std::make_shared<Texture>("assets/textures/terrain.png");
@@ -96,12 +97,13 @@ int main()
         terrainMaterial->snowTexture = snowTexture;
 
         WorldGenerationParams worldParams;
-        worldParams.chunksX = 7;
-        worldParams.chunksZ = 7;
-        worldParams.chunkResolution = 256;   
+        worldParams.chunksX = 4;
+        worldParams.chunksZ = 4;
+        worldParams.chunkResolution = 64;   
         worldParams.chunkWorldSize = 100.0f;
         worldParams.worldOrigin = glm::vec2(-200.0f, -200.0f); 
-        std::vector<int> lodStrides = { 1, 4, 8, 16};
+
+        std::vector<int> lodStrides = { 1, 2, 4, 8 };
 
         TerrainWorldGenerator terrainWorldGenerator;
 
@@ -113,7 +115,6 @@ int main()
         std::vector<ChunkLodEntry> chunkLodEntries;
         chunkLodEntries.reserve(chunkLodMeshesRaw.size());
 
-    
         std::vector<std::shared_ptr<Mesh>> lod0MeshesForEditor;
         lod0MeshesForEditor.reserve(chunkLodMeshesRaw.size());
 
@@ -147,36 +148,44 @@ int main()
         }
 
         TerrainLodManager terrainLodManager;
-        terrainLodManager.lodDistances = { 100.0f, 200.0f, 400.0f }; // dostrój do skali swojego świata
+        terrainLodManager.lodDistances = { 150.0f, 400.0f, 900.0f }; // dostrój do skali swojego świata
         terrainLodManager.hysteresisMargin = 20.0f;
         terrainLodManager.setChunks(std::move(chunkLodEntries));
 
-        // ---------------------------------------------------------------
-        // Input: klawiatura, mysz, kamera FPS
-        // ---------------------------------------------------------------
         KeyInput keyInput(std::vector<int>{
             GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D,
             GLFW_KEY_LEFT_SHIFT, GLFW_KEY_SPACE, GLFW_KEY_TAB});
         KeyInput::setupKeyInputs(window);
 
-        //MouseInput mouseInput;
-        //MouseInput::setupMouseInput(window);
+        MouseInput mouseInput;
+        MouseInput::setupMouseInput(window);
 
         std::shared_ptr<Camera> camera = std::make_shared<Camera>(
             60.0f, aspectRatio, 0.1f, 50000.0f,
             glm::vec3(0.0f, 1.5f, 3.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f),
-            keyInput);
+            keyInput, mouseInput);
         scene.setCamera(camera);
 
-        // UWAGA: TerrainEditorPanel na razie widzi tylko LOD0 każdego chunku (patrz uwaga na
-        // górze odpowiedzi) - "Regenerate world" odświeży wygląd terenu, ale nie odtworzy
-        // poprawnie poziomów LOD1-3, dopóki panel nie zostanie zrefaktoryzowany pod sliceInChunksWithLods.
-        //TerrainEditorPanel terrainEditor(
-        //    terrai
-        //    worldParams,
-        //    std::vector<std::shared_ptr<Texture>>{ terrainTexture });
+        const glm::vec2 previewOrigin = worldParams.worldOrigin;
+        const float previewSize = worldParams.chunkWorldSize * static_cast<float>(worldParams.chunksX);
+        const int previewResolution = worldParams.chunksX * worldParams.chunkResolution;
 
-        EditorGUI editorGUI(window.handle());
+        auto debugLineShader = std::make_shared<Shader>("assets/shaders/debug_line.vert", "assets/shaders/debug_line.frag");
+        auto chunkBoundaryRenderer = std::make_shared<ChunkBoundaryRenderer>(debugLineShader);
+        chunkBoundaryRenderer->build(chunkHeightFields);
+
+        TerrainEditorPanel terrainEditor(
+                        terrainLodManager,      
+                        lodStrides,
+                        previewOrigin,
+                        previewSize,
+                        previewResolution,
+                        worldParams,
+                        terrainWorldGenerator,
+                        chunkBoundaryRenderer,
+                        std::vector<std::shared_ptr<Texture>>{ terrainTexture });; 
+
+        EditorGUI editorGUI(window.handle(), &terrainEditor);
 
         //HDRTexture hdrPanorama("assets/hdri/studio.hdr");
         HDRTexture hdrPanorama("assets/hdri/EveningSkyHDRI046B_4K_TONEMAPPED.jpg");
@@ -207,7 +216,6 @@ int main()
         {
             float time = static_cast<float>(glfwGetTime());
 
-            // Tab przełącza między sterowaniem kamerą (kursor schowany) a UI (kursor widoczny)
             bool tabIsPressed = keyInput.isKeyPressed(GLFW_KEY_TAB);
             if (tabIsPressed && !tabWasPressed)
             {
@@ -218,6 +226,9 @@ int main()
 
             editorGUI.beginFrame();
             editorGUI.draw(scene);
+            terrainEditor.draw();      
+            terrainEditor.drawNested();
+            
 
             glClearColor(clearColor.r, clearColor.g, clearColor.b, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -245,7 +256,7 @@ int main()
             scene.RenderScene();
             editorGUI.render();
 
-            //mouseInput.endFrame(); // reset delty myszy - MUSI być po camera->update(), przed pollEvents
+            mouseInput.endFrame(); 
             window.swapBuffersAndPollEvents();
         }
     }

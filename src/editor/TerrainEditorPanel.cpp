@@ -7,24 +7,29 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
+#include <iostream>
 
-TerrainEditorPanel::TerrainEditorPanel(std::vector<std::shared_ptr<Mesh>>& terrainChunkMeshes,
+TerrainEditorPanel::TerrainEditorPanel(TerrainLodManager& lodManager,
+                                        const std::vector<int>& lodStrides,
                                         const glm::vec2& origin,
                                         float size,
                                         int resolution,
                                         const WorldGenerationParams& worldGenerationParams,
                                         const TerrainWorldGenerator& worldGenerator,
                                         const std::shared_ptr<ChunkBoundaryRenderer>& chunkBoundaryRenderer,
+                                        std::vector<std::shared_ptr<Texture>> textures,
                                         const NoiseGenerator::Settings& initialSettings)
-    : m_terrainChunkMeshes(terrainChunkMeshes)
+    : m_lodManager(lodManager)
+    , m_lodStrides(lodStrides)
+    , m_chunkBoundaryRenderer(chunkBoundaryRenderer)
+    , m_textures(std::move(textures))
     , m_noise(initialSettings)
     , m_settings(initialSettings)
+    , m_params(worldGenerationParams)
+    , m_worldGenerator(worldGenerator)
     , m_origin(origin)
     , m_size(size)
     , m_resolution(resolution)
-    , m_params(worldGenerationParams)
-    , m_worldGenerator(worldGenerator)
-    , m_chunkBoundaryRenderer(chunkBoundaryRenderer)
 {
     //regenerate();
 }
@@ -34,23 +39,41 @@ void TerrainEditorPanel::regenerate()
     m_noise.setSettings(m_settings);
 
     std::vector<TerrainHeightField> heightFields;
-    std::vector<Mesh> chunkMeshes = m_worldGenerator.sliceInChunks(m_noise, m_params, &heightFields);
-    
+    auto chunkLodMeshesRaw = m_worldGenerator.sliceInChunksWithLods(
+        m_noise, m_params, m_lodStrides, &heightFields, m_textures);
+
     if (m_chunkBoundaryRenderer)
         m_chunkBoundaryRenderer->build(heightFields);
 
+    const std::size_t expectedCount = static_cast<std::size_t>(m_params.chunksX) * m_params.chunksZ;
 
-    for (int i = 0; i < m_params.chunksX *  m_params.chunksX; i++)
+    if (chunkLodMeshesRaw.size() != expectedCount || chunkLodMeshesRaw.size() != m_lodManager.chunkCount())
     {
-        *m_terrainChunkMeshes[i] = std::move(chunkMeshes[i]);
+        std::cerr << "TerrainEditorPanel::regenerate: chunk count mismatch! "
+                  << "generated=" << chunkLodMeshesRaw.size()
+                  << " expected=" << expectedCount
+                  << " lodManager=" << m_lodManager.chunkCount()
+                  << " - zmiana liczby chunkow z edytora nie jest obslugiwana "
+                  << "(WorldObject-y sa tworzone raz, na starcie)" << std::endl;
+        return;
     }
-    
+
+    for (std::size_t i = 0; i < chunkLodMeshesRaw.size(); ++i)
+    {
+        const TerrainHeightField& hf = heightFields[i];
+        const float chunkSize = static_cast<float>(hf.pointsPerAxis - 1) * hf.cellSize;
+        const glm::vec3 boundsCenter(hf.origin.x + chunkSize * 0.5f, 0.0f, hf.origin.y + chunkSize * 0.5f);
+        const float boundsRadius = chunkSize * 0.7071f;
+
+        m_lodManager.updateChunkMeshes(i, chunkLodMeshesRaw[i], boundsCenter, boundsRadius);
+    }
 
     refreshHeightMapTexture();
 }
 
 void TerrainEditorPanel::refreshHeightMapTexture()
 {
+    // bez zmian względem poprzedniej wersji
     TerrainPipeline pipeline;
     const TerrainHeightField heightField = pipeline.run(m_noise, m_origin, m_size, m_resolution);
 
@@ -85,6 +108,7 @@ void TerrainEditorPanel::refreshHeightMapTexture()
 
 void TerrainEditorPanel::drawNested()
 {
+    // bez zmian - identyczne suwaki jak wcześniej
     ImGui::Begin("Terain generator");
 
     ImGui::SliderInt(       "Resolution",               &m_params.chunkResolution,          8, 512);
@@ -104,8 +128,7 @@ void TerrainEditorPanel::drawNested()
     m_params.chunksZ = m_params.chunksX;
 
     int noiseTypeIndex = static_cast<int>(m_settings.noiseType);
-    if (ImGui::Combo("Noise type", &noiseTypeIndex,
-                     "Plain Perlin\0Gradient Trick Perlin\0"))
+    if (ImGui::Combo("Noise type", &noiseTypeIndex, "Plain Perlin\0Gradient Trick Perlin\0"))
     {
         m_settings.noiseType = static_cast<NoiseGenerator::Settings::NoiseType>(noiseTypeIndex);
     }
@@ -126,7 +149,6 @@ void TerrainEditorPanel::drawNested()
         ImGui::SliderFloat("Deposition speed",  &m_settings.depositionSpeed, 0.0f, 0.5f);
         ImGui::SliderFloat("Evaporation rate",  &m_settings.evaporationRate, 0.0f, 0.2f);
         ImGui::SliderFloat("Interia",           &m_settings.inertia, 0.0f, 1.0f);
-
     }
 
     if (m_chunkBoundaryRenderer)
@@ -153,6 +175,7 @@ void TerrainEditorPanel::drawNested()
 
 void TerrainEditorPanel::draw()
 {
+    // bez zmian
     ImGui::SetNextWindowSizeConstraints(ImVec2(160.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
     ImGui::Begin("Heightmap Preview", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
@@ -161,8 +184,7 @@ void TerrainEditorPanel::draw()
         ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(m_heightMapTexture->id())),
                      ImVec2(static_cast<float>(m_heightMapTexture->width()),
                             static_cast<float>(m_heightMapTexture->height())),
-                     ImVec2(0.0f, 0.0f),
-                     ImVec2(1.0f, 1.0f));
+                     ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
     }
     else
     {

@@ -23,6 +23,10 @@ public:
     void setChunks(std::vector<ChunkLodEntry> chunks) { m_chunks = std::move(chunks); }
     void update(const glm::vec3& cameraPosition, Scean& scene);
 
+    void updateChunkMeshes(std::size_t chunkIndex, std::vector<Mesh>& newLodMeshes, const glm::vec3& newBoundsCenter, float newBoundsRadius);
+
+    inline std::size_t chunkCount() const { return m_chunks.size(); }
+
     std::vector<float> lodDistances = { 10.0f, 40.0f, 80.0f };
     float hysteresisMargin = 20.0f;
 

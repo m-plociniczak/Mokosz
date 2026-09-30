@@ -3,6 +3,7 @@ add_library(pbr_core OBJECT
     KeyInput.cpp
     Window.cpp
     ObjectLoader.cpp
+    MouseInput.cpp
 )
 
 target_include_directories(pbr_core

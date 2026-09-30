@@ -1,34 +1,36 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "../terrain/NoiseGenerator.h"
 #include "../renderer/Mesh.h"
 #include <terrain/TerrainWorldGenerator.hpp>
+#include <terrain/TerrainLodManager.hpp>
 #include "ChunkBoundaryRenderer.hpp"
 
 class TerrainEditorPanel
 {
 public:
-    TerrainEditorPanel(std::vector<std::shared_ptr<Mesh>>& terrainChunkMeshes,
+    TerrainEditorPanel(TerrainLodManager& lodManager,
+                        const std::vector<int>& lodStrides,
                         const glm::vec2& origin,
                         float size,
                         int resolution,
-                        const WorldGenerationParams& WorldGenerationParams,
+                        const WorldGenerationParams& worldGenerationParams,
                         const TerrainWorldGenerator& worldGenerator,
                         const std::shared_ptr<ChunkBoundaryRenderer>& chunkBoundaryRenderer,
+                        std::vector<std::shared_ptr<Texture>> textures = {},
                         const NoiseGenerator::Settings& initialSettings = NoiseGenerator::Settings());
 
-    // Render the terrain editor controls in a standalone ImGui window.
     void draw();
-
-    // Render the terrain editor controls inside another ImGui panel.
     void drawNested();
 
 private:
-    std::shared_ptr<Mesh> m_terrainMesh;
+    TerrainLodManager& m_lodManager;
+    std::vector<int> m_lodStrides;
     std::shared_ptr<ChunkBoundaryRenderer> m_chunkBoundaryRenderer;
-    std::vector<std::shared_ptr<Mesh>> m_terrainChunkMeshes;
+    std::vector<std::shared_ptr<Texture>> m_textures;
     NoiseGenerator m_noise;
     NoiseGenerator::Settings m_settings;
     WorldGenerationParams m_params;
