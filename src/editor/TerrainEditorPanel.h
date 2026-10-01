@@ -13,6 +13,7 @@ class TerrainEditorPanel
 {
 public:
     TerrainEditorPanel(TerrainLodManager& lodManager,
+                        std::shared_ptr<TerrainCollider> terrainCollider,
                         const std::vector<int>& lodStrides,
                         const glm::vec2& origin,
                         float size,
@@ -30,6 +31,7 @@ private:
     TerrainLodManager& m_lodManager;
     std::vector<int> m_lodStrides;
     std::shared_ptr<ChunkBoundaryRenderer> m_chunkBoundaryRenderer;
+    std::shared_ptr<TerrainCollider>      m_terrainCollider = nullptr;
     std::vector<std::shared_ptr<Texture>> m_textures;
     NoiseGenerator m_noise;
     NoiseGenerator::Settings m_settings;

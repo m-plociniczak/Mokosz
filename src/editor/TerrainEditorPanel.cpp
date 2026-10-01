@@ -10,6 +10,7 @@
 #include <iostream>
 
 TerrainEditorPanel::TerrainEditorPanel(TerrainLodManager& lodManager,
+                                        std::shared_ptr<TerrainCollider> terrainCollider,
                                         const std::vector<int>& lodStrides,
                                         const glm::vec2& origin,
                                         float size,
@@ -20,6 +21,7 @@ TerrainEditorPanel::TerrainEditorPanel(TerrainLodManager& lodManager,
                                         std::vector<std::shared_ptr<Texture>> textures,
                                         const NoiseGenerator::Settings& initialSettings)
     : m_lodManager(lodManager)
+    , m_terrainCollider(terrainCollider)
     , m_lodStrides(lodStrides)
     , m_chunkBoundaryRenderer(chunkBoundaryRenderer)
     , m_textures(std::move(textures))
@@ -45,6 +47,9 @@ void TerrainEditorPanel::regenerate()
     if (m_chunkBoundaryRenderer)
         m_chunkBoundaryRenderer->build(heightFields);
 
+    if (m_terrainCollider)
+        m_terrainCollider->updateChunks(heightFields);
+
     const std::size_t expectedCount = static_cast<std::size_t>(m_params.chunksX) * m_params.chunksZ;
 
     if (chunkLodMeshesRaw.size() != expectedCount || chunkLodMeshesRaw.size() != m_lodManager.chunkCount())
@@ -53,8 +58,7 @@ void TerrainEditorPanel::regenerate()
                   << "generated=" << chunkLodMeshesRaw.size()
                   << " expected=" << expectedCount
                   << " lodManager=" << m_lodManager.chunkCount()
-                  << " - zmiana liczby chunkow z edytora nie jest obslugiwana "
-                  << "(WorldObject-y sa tworzone raz, na starcie)" << std::endl;
+                  <<  std::endl;
         return;
     }
 
@@ -73,7 +77,6 @@ void TerrainEditorPanel::regenerate()
 
 void TerrainEditorPanel::refreshHeightMapTexture()
 {
-    // bez zmian względem poprzedniej wersji
     TerrainPipeline pipeline;
     const TerrainHeightField heightField = pipeline.run(m_noise, m_origin, m_size, m_resolution);
 
@@ -141,14 +144,14 @@ void TerrainEditorPanel::drawNested()
 
     if (m_settings.enableErosion)
     {
-        ImGui::SliderInt("Iterations",          &m_settings.iterations, 0, 10000000);
-        ImGui::SliderInt("Droplet lifetime",    &m_settings.dropletLifetime, 4, 60);
-        ImGui::SliderFloat("Brush radius",      &m_settings.brushRadius, 1.0f, 8.0f);
-        ImGui::SliderFloat("Erosion strength",  &m_settings.erosionStrength, 0.0f, 2.0f);
-        ImGui::SliderFloat("Sediment capacity", &m_settings.sedimentCapacity, 0.0f, 2.0f);
-        ImGui::SliderFloat("Deposition speed",  &m_settings.depositionSpeed, 0.0f, 0.5f);
-        ImGui::SliderFloat("Evaporation rate",  &m_settings.evaporationRate, 0.0f, 0.2f);
-        ImGui::SliderFloat("Interia",           &m_settings.inertia, 0.0f, 1.0f);
+        ImGui::SliderInt("Iterations",          &m_settings.iterations,             0, 10000000);
+        ImGui::SliderInt("Droplet lifetime",    &m_settings.dropletLifetime,        4, 60);
+        ImGui::SliderFloat("Brush radius",      &m_settings.brushRadius,            1.0f, 8.0f);
+        ImGui::SliderFloat("Erosion strength",  &m_settings.erosionStrength,        0.0f, 2.0f);
+        ImGui::SliderFloat("Sediment capacity", &m_settings.sedimentCapacity,       0.0f, 10.0f);
+        ImGui::SliderFloat("Deposition speed",  &m_settings.depositionSpeed,        0.0f, 0.5f);
+        ImGui::SliderFloat("Evaporation rate",  &m_settings.evaporationRate,        0.0f, 0.2f);
+        ImGui::SliderFloat("Interia",           &m_settings.inertia,                0.0f, 1.0f);
     }
 
     if (m_chunkBoundaryRenderer)

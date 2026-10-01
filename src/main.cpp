@@ -27,10 +27,12 @@
 #include <terrain/TerrainWorldGenerator.hpp>
 #include <terrain/TerrainHeightField.h>
 #include <terrain/TerrainLodManager.hpp>
+#include <terrain/TerrainCollider.hpp>
 
 #include <editor/EditorGUI.h>
 #include <editor/TerrainEditorPanel.h>
 #include <editor/ChunkBoundaryRenderer.hpp>
+#include <editor/CameraEditorPanel.hpp>
 
 
 int main()
@@ -133,7 +135,7 @@ int main()
             entry.boundsCenter = glm::vec3(hf.origin.x + chunkSize * 0.5f, 0.0f, hf.origin.y + chunkSize * 0.5f);
             entry.boundsRadius = chunkSize * 0.7071f;
 
-            std::size_t meshIndex = scene.addMesh(entry.lodMeshes[0]); // start: najwyższy detal (LOD0)
+            std::size_t meshIndex = scene.addMesh(entry.lodMeshes[0]);
             std::size_t objectIndex = scene.addWorldObject(WorldObject(
                                 scene.getMesh(meshIndex),
                                 scene.getShader(terrainShaderIndex),
@@ -148,23 +150,28 @@ int main()
         }
 
         TerrainLodManager terrainLodManager;
-        terrainLodManager.lodDistances = { 150.0f, 400.0f, 900.0f }; // dostrój do skali swojego świata
+        terrainLodManager.lodDistances = { 150.0f, 400.0f, 900.0f };
         terrainLodManager.hysteresisMargin = 20.0f;
         terrainLodManager.setChunks(std::move(chunkLodEntries));
 
         KeyInput keyInput(std::vector<int>{
             GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D,
-            GLFW_KEY_LEFT_SHIFT, GLFW_KEY_SPACE, GLFW_KEY_TAB});
+            GLFW_KEY_LEFT_SHIFT, GLFW_KEY_SPACE, GLFW_KEY_TAB, GLFW_KEY_F});
         KeyInput::setupKeyInputs(window);
 
         MouseInput mouseInput;
         MouseInput::setupMouseInput(window);
+        std::shared_ptr<TerrainCollider> terrainCollider = std::make_shared<TerrainCollider>();
+        terrainCollider->setChunks(chunkHeightFields);
 
         std::shared_ptr<Camera> camera = std::make_shared<Camera>(
-            60.0f, aspectRatio, 0.1f, 50000.0f,
+            45.0f, aspectRatio, 0.1f, 50000.0f,
             glm::vec3(0.0f, 1.5f, 3.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f),
             keyInput, mouseInput);
-        scene.setCamera(camera);
+            scene.setCamera(camera);
+
+        camera->setTerrainCollider(terrainCollider.get());
+        camera->setWalkModeEnabled(true);
 
         const glm::vec2 previewOrigin = worldParams.worldOrigin;
         const float previewSize = worldParams.chunkWorldSize * static_cast<float>(worldParams.chunksX);
@@ -175,7 +182,8 @@ int main()
         chunkBoundaryRenderer->build(chunkHeightFields);
 
         TerrainEditorPanel terrainEditor(
-                        terrainLodManager,      
+                        terrainLodManager,
+                        terrainCollider,      
                         lodStrides,
                         previewOrigin,
                         previewSize,
@@ -186,6 +194,7 @@ int main()
                         std::vector<std::shared_ptr<Texture>>{ terrainTexture });; 
 
         EditorGUI editorGUI(window.handle(), &terrainEditor);
+        CameraEditorPanel cameraEditor(camera, 60.0f, 0.1f, 50000.0f);
 
         //HDRTexture hdrPanorama("assets/hdri/studio.hdr");
         HDRTexture hdrPanorama("assets/hdri/EveningSkyHDRI046B_4K_TONEMAPPED.jpg");
@@ -211,6 +220,7 @@ int main()
 
         bool cursorCaptured = true;
         bool tabWasPressed = false;
+        bool fWasPressed = false;
 
         while (window.isOpen())
         {
@@ -224,10 +234,18 @@ int main()
             }
             tabWasPressed = tabIsPressed;
 
+            bool fIsPressed = keyInput.isKeyPressed(GLFW_KEY_F);
+            if (fIsPressed && !fWasPressed)
+            {
+                camera->setWalkModeEnabled(!camera->isWalkModeEnabled());
+            }
+            fWasPressed = fIsPressed;
+
             editorGUI.beginFrame();
             editorGUI.draw(scene);
             terrainEditor.draw();      
             terrainEditor.drawNested();
+            cameraEditor.drawNested();
             
 
             glClearColor(clearColor.r, clearColor.g, clearColor.b, 1.0f);
@@ -248,7 +266,7 @@ int main()
 
             if (cursorCaptured)
             {
-                camera->update();
+                camera->update(time / 100.f);
             }
 
             terrainLodManager.update(camera->getPosition(), scene);

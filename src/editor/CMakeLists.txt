@@ -2,6 +2,7 @@ add_library(Editor OBJECT
     EditorGUI.cpp
     TerrainEditorPanel.cpp
     ChunkBoundaryRenderer.cpp
+    CameraEditorPanel.cpp
 )
 
 target_include_directories(Editor

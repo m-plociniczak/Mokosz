@@ -10,6 +10,7 @@ add_library(PBR_Terrain OBJECT
     ApplyAmplitude.cpp  
     TerrainWorldGenerator.cpp
     TerrainLodManager.cpp
+    TerrainCollider.cpp
 )
 
 target_include_directories(PBR_Terrain
