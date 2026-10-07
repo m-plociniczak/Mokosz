@@ -33,6 +33,7 @@ public:
     void drawWithMaterial(Shader& shader) const;
 
     static Mesh createColoredCube();
+    static Mesh createPlane(float width = 1.0f, float depth = 1.0f);
     static Mesh createUVSphere(float radius = 1.0f, uint32_t latSegments = 32, uint32_t lonSegments = 32);
 
 private:

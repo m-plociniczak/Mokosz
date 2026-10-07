@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TerrainPipelineStage.h"
+#include "NoiseGenerator.h" 
 
 class ApplyIslandMask : public TerrainPipelineStage
 {

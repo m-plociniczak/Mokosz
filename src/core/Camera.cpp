@@ -1,4 +1,3 @@
-// Camera.cpp
 #include <glm/gtc/matrix_transform.hpp>
 #include "Camera.hpp"
 

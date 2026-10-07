@@ -1,33 +1,30 @@
 #include "ApplyIslandMask.h"
 
 #include <glm/gtc/noise.hpp>
+#include <glm/glm.hpp>
 
-void ApplyIslandMask::apply(TerrainHeightField& heightField,
-                            const NoiseGenerator::Settings& settings)
+void ApplyIslandMask::apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings)
 {
     for (int z = 0; z < heightField.pointsPerAxis; ++z)
     {
         for (int x = 0; x < heightField.pointsPerAxis; ++x)
         {
-            const float worldX = heightField.origin.x + x * heightField.cellSize;
-            const float worldZ = heightField.origin.y + z * heightField.cellSize;
-            const float distanceFromCenter = glm::length(glm::vec2(worldX, worldZ));
-
-            float islandMask = 1.0f;
-            if (settings.islandRadius > 0.0f)
+            const float worldX                  =  heightField.origin.x + x * heightField.cellSize;
+            const float worldZ                  =  heightField.origin.y + z * heightField.cellSize;
+            const float angle                   =  glm::atan(worldZ, worldX);                                // -pi to pi
+            const float noiseAtDirection        =  glm::perlin(glm::vec2(std::cos(angle) + settings.seedOffset.x, std::sin(angle) + settings.seedOffset.y)) * settings.islandRadius * 0.50f;
+            const float distanceFromCenter      =  glm::length(glm::vec2(worldX, worldZ)) + noiseAtDirection;
+            
+            if(distanceFromCenter > settings.islandRadius)
             {
-                islandMask = 1.0f - glm::smoothstep(
-                    settings.islandRadius - settings.edgeFalloff,
-                    settings.islandRadius,
-                    distanceFromCenter);
+                const float distanceBeyondRadius = distanceFromCenter - settings.islandRadius;
+                const float fadeFactor           = glm::clamp(distanceBeyondRadius / settings.edgeFalloff, 0.0f, 1.0f);
+
+                const int index = z * heightField.pointsPerAxis + x;
+                heightField.heights[index] *= 1.0f - fadeFactor;
+                
             }
 
-            const int  index = z * heightField.pointsPerAxis + x;
-            const float edgeDrop = glm::mix(heightField.heights[static_cast<std::size_t>(index)], heightField.minHeight, 1.0f - islandMask);
-            
-            heightField.heights[static_cast<std::size_t>(index)] = edgeDrop;
-            heightField.maxHeight = std::max(heightField.maxHeight, heightField.heights[static_cast<std::size_t>(index)]);
-            heightField.minHeight = std::min(heightField.minHeight, heightField.heights[static_cast<std::size_t>(index)]);
         }
     }
 }

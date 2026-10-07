@@ -23,6 +23,7 @@ public:
         {
             PlainPerlin,
             GradientTrickPerlin, 
+            DomainWarpedPerlin,
         } 
         
         noiseType = NoiseType::PlainPerlin;
@@ -52,13 +53,14 @@ public:
 
     float getHeight(float worldX, float worldZ);
 
-    void setSettings(const Settings& settings) { m_settings = settings; }
-    const Settings& settings() const { return m_settings; }
+    void setSettings(const Settings& settings)  { m_settings = settings; }
+    const Settings& settings() const            { return m_settings; }
 
 private:
     Settings m_settings;
 
     float perlinNoise(float worldX, float worldZ);               
     float gradientTrickPerlinNoise(float worldX, float worldZ);
+    float domainWarpedPerlinNoise(float worldX, float worldZ);
     glm::vec3 getGradientAtPoint(float x, float z);
 };

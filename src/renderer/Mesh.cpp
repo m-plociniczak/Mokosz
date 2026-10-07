@@ -103,6 +103,23 @@ Mesh Mesh::createColoredCube()
     return Mesh(vertices, indices);
 }
 
+Mesh Mesh::createPlane(float width, float depth)
+{
+    const float halfWidth = width * 0.5f;
+    const float halfDepth = depth * 0.5f;
+    const glm::vec3 normal(0.0f, 1.0f, 0.0f);
+
+    const std::vector<Vertex> vertices{
+        { {-halfWidth, 0.0f, -halfDepth}, normal, {0.0f, 0.0f}, glm::vec3(1.0f) },
+        { {-halfWidth, 0.0f,  halfDepth}, normal, {0.0f, 1.0f}, glm::vec3(1.0f) },
+        { { halfWidth, 0.0f,  halfDepth}, normal, {1.0f, 1.0f}, glm::vec3(1.0f) },
+        { { halfWidth, 0.0f, -halfDepth}, normal, {1.0f, 0.0f}, glm::vec3(1.0f) },
+    };
+    const std::vector<uint32_t> indices{ 0, 1, 2, 0, 2, 3 };
+
+    return Mesh(vertices, indices);
+}
+
 Mesh Mesh::createUVSphere(float radius, uint32_t latSegments, uint32_t lonSegments)
 {
     std::vector<Vertex> vertices;

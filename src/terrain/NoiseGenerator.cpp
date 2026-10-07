@@ -16,11 +16,8 @@ glm::vec3 NoiseGenerator::getGradientAtPoint(float x, float z)
     float heightD = getHeight(x, z - delta);
     float heightU = getHeight(x, z + delta);
 
-    m_settings.noiseType = Settings::NoiseType::GradientTrickPerlin;
-    
-    //std::cout << "Gradient at (" << x << ", " << z << "): (" << heightR - heightL << ", " << 2.0f * delta << ", " << heightU - heightD << ")" << std::endl;
+    m_settings.noiseType = Settings::NoiseType::GradientTrickPerlin;    
     return glm::vec3(heightR - heightL, 2.0f * delta, heightU - heightD);
-     
 }
 
 
@@ -32,14 +29,39 @@ NoiseGenerator::NoiseGenerator(const Settings& settings)
 
 float NoiseGenerator::getHeight(float worldX, float worldZ)
 {
-    if(m_settings.noiseType == Settings::NoiseType::PlainPerlin)            return perlinNoise(worldX, worldZ);
-    if(m_settings.noiseType == Settings::NoiseType::GradientTrickPerlin)    return gradientTrickPerlinNoise(worldX, worldZ);
+    if(m_settings.noiseType == Settings::NoiseType::PlainPerlin)                return perlinNoise(worldX, worldZ);
+    if(m_settings.noiseType == Settings::NoiseType::GradientTrickPerlin)        return gradientTrickPerlinNoise(worldX, worldZ);
+    if(m_settings.noiseType == Settings::NoiseType::DomainWarpedPerlin)         return domainWarpedPerlinNoise(worldX, worldZ);
     
     std::cerr << "Unknown noise type selected. " << std::endl;
     return 0.0f;
   
 }
 
+
+float NoiseGenerator::domainWarpedPerlinNoise(float worldX, float worldZ)
+{
+    float total = 0.0f;
+    float frequency = 1.0f / m_settings.scale;
+    float amplitude = 1.0f;
+
+    for (int octave = 0; octave < m_settings.octaves; ++octave)
+    {
+        glm::vec2 samplePoint(
+            worldX * frequency + m_settings.seedOffset.x,
+            worldZ * frequency + m_settings.seedOffset.y);
+
+        glm::vec2 warpOffset(
+            glm::perlin(samplePoint + glm::vec2(5.2f, 1.3f)) * 10.0f,
+            glm::perlin(samplePoint + glm::vec2(8.3f, 2.8f)) * 10.0f);
+
+        total += glm::perlin(samplePoint + warpOffset) * amplitude;
+
+        amplitude *= m_settings.persistence;
+        frequency *= m_settings.lacunarity;
+    }
+    return total;
+}
 
 float NoiseGenerator::gradientTrickPerlinNoise(float worldX, float worldZ)
 {

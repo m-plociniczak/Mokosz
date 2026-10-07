@@ -60,6 +60,8 @@ int main()
         std::size_t basicShaderIndex   = scene.addShader(std::make_shared<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag"));
         std::size_t pbrShaderIndex     = scene.addShader(std::make_shared<Shader>("assets/shaders/pbr.vert", "assets/shaders/pbr.frag"));
         std::size_t terrainShaderIndex = scene.addShader(std::make_shared<Shader>("assets/shaders/terrain.vert", "assets/shaders/terrain.frag"));
+        auto waterShader = std::make_shared<Shader>("assets/shaders/water.vert", "assets/shaders/water.frag");
+        std::size_t waterShaderIndex = scene.addShader(waterShader);
 
         std::size_t cubeMeshIndex    = scene.addMesh(std::make_shared<Mesh>(Mesh::createColoredCube()));
         std::size_t sphereMeshIndex  = scene.addMesh(std::make_shared<Mesh>(Mesh::createUVSphere(1.0f, 32, 32)));
@@ -148,6 +150,19 @@ int main()
             lod0MeshesForEditor.push_back(entry.lodMeshes[0]);
             chunkLodEntries.push_back(std::move(entry));
         }
+
+        const std::size_t waterMeshIndex = scene.addMesh(std::make_shared<Mesh>(
+            Mesh::createPlane(worldParams.chunkWorldSize * static_cast<float>(worldParams.chunksX),
+                              worldParams.chunkWorldSize * static_cast<float>(worldParams.chunksZ))));
+        auto waterMaterial = std::make_shared<Material>();
+        waterMaterial->name = "Water_Material";
+        waterMaterial->albedo = glm::vec3(0.05f, 0.25f, 0.85f);
+        scene.addWorldObject(WorldObject(
+            scene.getMesh(waterMeshIndex),
+            scene.getShader(waterShaderIndex),
+            "Water",
+            Transform(glm::vec3(0.0f, 0.0f, 0.0f)),
+            waterMaterial));
 
         TerrainLodManager terrainLodManager;
         terrainLodManager.lodDistances = { 150.0f, 400.0f, 900.0f };
@@ -271,6 +286,8 @@ int main()
 
             terrainLodManager.update(camera->getPosition(), scene);
 
+            waterShader->bind();
+            waterShader->setFloat("uTime", time);
             scene.RenderScene();
             editorGUI.render();
 
