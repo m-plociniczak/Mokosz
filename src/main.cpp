@@ -110,11 +110,13 @@ int main()
         std::vector<int> lodStrides = { 1, 2, 4, 8 };
 
         TerrainWorldGenerator terrainWorldGenerator;
+        TerrainPipeline terrainPipeline(terrainNoise);
 
         std::vector<TerrainHeightField> chunkHeightFields;
         auto chunkLodMeshesRaw = terrainWorldGenerator.sliceInChunksWithLods(
             terrainNoise, worldParams, lodStrides, &chunkHeightFields,
-            std::vector<std::shared_ptr<Texture>>{ terrainTexture });
+            std::vector<std::shared_ptr<Texture>>{ terrainTexture },
+            terrainPipeline.getStages());
 
         std::vector<ChunkLodEntry> chunkLodEntries;
         chunkLodEntries.reserve(chunkLodMeshesRaw.size());
@@ -205,6 +207,8 @@ int main()
                         previewResolution,
                         worldParams,
                         terrainWorldGenerator,
+                        terrainNoise,
+                        terrainPipeline,
                         chunkBoundaryRenderer,
                         std::vector<std::shared_ptr<Texture>>{ terrainTexture });; 
 

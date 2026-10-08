@@ -4,6 +4,7 @@
 
 #include "TerrainPipeline.h"
 #include "TerrainHeightField.h"
+#include "TerrainPipelineStage.h"
 #include<renderer/Mesh.h>
 
 struct WorldGenerationParams
@@ -23,11 +24,11 @@ struct WorldGenerationParams
 class TerrainWorldGenerator
 {
 public:
-    Mesh generateMasterMesh(const NoiseGenerator& noise, const WorldGenerationParams& params, std::vector<std::shared_ptr<Texture>> textures = {}) const;
-    TerrainHeightField generateMasterHeightField(const NoiseGenerator& noise, const WorldGenerationParams& params) const;
+    Mesh generateMasterMesh(const NoiseGenerator& noise, const WorldGenerationParams& params, std::vector<std::shared_ptr<Texture>> textures = {}, const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages = {}) const;
+    TerrainHeightField generateMasterHeightField(const NoiseGenerator& noise, const WorldGenerationParams& params, const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages = {}) const;
     
-    std::vector<Mesh> sliceInChunks(const NoiseGenerator& noise, const WorldGenerationParams& params,std::vector<TerrainHeightField>* outHeightFields = nullptr ,std::vector<std::shared_ptr<Texture>> textures = {}) const;
-    std::vector<std::vector<Mesh>> sliceInChunksWithLods(const NoiseGenerator& noise, const WorldGenerationParams& params, const std::vector<int>& lodStrides, std::vector<TerrainHeightField>* outHeightFields = nullptr ,std::vector<std::shared_ptr<Texture>> textures = {}) const; 
+    std::vector<Mesh> sliceInChunks(const NoiseGenerator& noise, const WorldGenerationParams& params,std::vector<TerrainHeightField>* outHeightFields = nullptr ,std::vector<std::shared_ptr<Texture>> textures = {}, const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages = {}) const;
+    std::vector<std::vector<Mesh>> sliceInChunksWithLods(const NoiseGenerator& noise, const WorldGenerationParams& params, const std::vector<int>& lodStrides, std::vector<TerrainHeightField>* outHeightFields = nullptr ,std::vector<std::shared_ptr<Texture>> textures = {}, const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages = {}) const; 
     
 
 private:

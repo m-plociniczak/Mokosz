@@ -4,5 +4,12 @@
 class ApplyAmplitude : public TerrainPipelineStage
 {
 public:
-    void apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings) override;
+    ApplyAmplitude(float amplitude = 18.0f)     :    m_amplitude(amplitude) {}      
+    void apply(TerrainHeightField& heightField)     override;
+
+    float getAmplitude() const { return m_amplitude; }
+    void setAmplitude(float amplitude) { m_amplitude = amplitude; }
+
+private:
+    float m_amplitude;
 };

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-void CreateNoiseMapObject::apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings)
+void CreateNoiseMapObject::apply(TerrainHeightField& heightField)
 {
     heightField.minHeight = std::numeric_limits<float>::max();
     heightField.maxHeight = std::numeric_limits<float>::lowest();
@@ -13,7 +13,7 @@ void CreateNoiseMapObject::apply(TerrainHeightField& heightField, const NoiseGen
         {
             const float worldX = heightField.origin.x + x * heightField.cellSize;
             const float worldZ = heightField.origin.y + z * heightField.cellSize;
-            const float height = NoiseGenerator(settings).getHeight(worldX, worldZ);
+            const float height = m_noiseGenerator->getHeight(worldX, worldZ);
 
             heightField.minHeight = std::min(heightField.minHeight, height);
             heightField.maxHeight = std::max(heightField.maxHeight, height);

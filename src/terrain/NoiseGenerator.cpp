@@ -4,19 +4,19 @@
 #include <iostream>
 
 
-glm::vec3 NoiseGenerator::getGradientAtPoint(float x, float z) 
+glm::vec3 NoiseGenerator::getGradientAtPoint(float x, float z)  const
 {
     float delta = 0.01f;
 
 
-    m_settings.noiseType = Settings::NoiseType::PlainPerlin;
+    //m_settings.noiseType = Settings::NoiseType::PlainPerlin;
 
     float heightL = getHeight(x - delta, z);
     float heightR = getHeight(x + delta, z);
     float heightD = getHeight(x, z - delta);
     float heightU = getHeight(x, z + delta);
 
-    m_settings.noiseType = Settings::NoiseType::GradientTrickPerlin;    
+    //m_settings.noiseType = Settings::NoiseType::GradientTrickPerlin;    
     return glm::vec3(heightR - heightL, 2.0f * delta, heightU - heightD);
 }
 
@@ -24,10 +24,10 @@ glm::vec3 NoiseGenerator::getGradientAtPoint(float x, float z)
 
 
 
-NoiseGenerator::NoiseGenerator(const Settings& settings)
+NoiseGenerator::NoiseGenerator(const Settings& settings) 
     : m_settings(settings){}
 
-float NoiseGenerator::getHeight(float worldX, float worldZ)
+float NoiseGenerator::getHeight(float worldX, float worldZ) const
 {
     if(m_settings.noiseType == Settings::NoiseType::PlainPerlin)                return perlinNoise(worldX, worldZ);
     if(m_settings.noiseType == Settings::NoiseType::GradientTrickPerlin)        return gradientTrickPerlinNoise(worldX, worldZ);
@@ -39,7 +39,7 @@ float NoiseGenerator::getHeight(float worldX, float worldZ)
 }
 
 
-float NoiseGenerator::domainWarpedPerlinNoise(float worldX, float worldZ)
+float NoiseGenerator::domainWarpedPerlinNoise(float worldX, float worldZ) const
 {
     float total = 0.0f;
     float frequency = 1.0f / m_settings.scale;
@@ -63,7 +63,7 @@ float NoiseGenerator::domainWarpedPerlinNoise(float worldX, float worldZ)
     return total;
 }
 
-float NoiseGenerator::gradientTrickPerlinNoise(float worldX, float worldZ)
+float NoiseGenerator::gradientTrickPerlinNoise(float worldX, float worldZ) const
 {
     float total = 0.0f;
     float frequency = 1.0f / m_settings.scale;
@@ -94,7 +94,7 @@ float NoiseGenerator::gradientTrickPerlinNoise(float worldX, float worldZ)
 }
 
 
-float NoiseGenerator::perlinNoise(float worldX, float worldZ)
+float NoiseGenerator::perlinNoise(float worldX, float worldZ) const 
 {
     float total = 0.0f;
     float frequency = 1.0f / m_settings.scale;

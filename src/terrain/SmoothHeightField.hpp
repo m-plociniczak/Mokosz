@@ -9,7 +9,10 @@ class SmoothHeightField : public TerrainPipelineStage
         explicit SmoothHeightField(int kernelRadius = 3);
         ~SmoothHeightField() = default;
 
-        void apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings) override;
+        void apply(TerrainHeightField& heightField) override;
+
+        int getKernelRadius() const { return m_kernelRadius; }
+        void setKernelRadius(int kernelRadius) { m_kernelRadius = kernelRadius; }
     
     private:
         int m_kernelRadius;

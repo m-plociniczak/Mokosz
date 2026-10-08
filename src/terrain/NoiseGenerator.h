@@ -51,7 +51,7 @@ public:
 
     explicit NoiseGenerator(const Settings& settings = Settings());
 
-    float getHeight(float worldX, float worldZ);
+    float getHeight(float worldX, float worldZ) const;
 
     void setSettings(const Settings& settings)  { m_settings = settings; }
     const Settings& settings() const            { return m_settings; }
@@ -59,8 +59,8 @@ public:
 private:
     Settings m_settings;
 
-    float perlinNoise(float worldX, float worldZ);               
-    float gradientTrickPerlinNoise(float worldX, float worldZ);
-    float domainWarpedPerlinNoise(float worldX, float worldZ);
-    glm::vec3 getGradientAtPoint(float x, float z);
+    float           perlinNoise(float worldX, float worldZ)                 const;               
+    float           gradientTrickPerlinNoise(float worldX, float worldZ)    const;
+    float           domainWarpedPerlinNoise(float worldX, float worldZ)     const;
+    glm::vec3       getGradientAtPoint(float x, float z)                    const;
 };

@@ -84,9 +84,9 @@ HydraulicErosion::HeightAndGradient HydraulicErosion::calculateHeightAndGradient
     return HeightAndGradient{ height, gradientX, gradientY };
 }
 
-void HydraulicErosion::apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings)
+void HydraulicErosion::apply(TerrainHeightField& heightField)
 {
-    if (!settings.enableErosion)
+    if (!m_enableErosion)
         return;
 
     const int mapSize = heightField.pointsPerAxis;
@@ -95,23 +95,23 @@ void HydraulicErosion::apply(TerrainHeightField& heightField, const NoiseGenerat
 
     std::vector<float>& heights = heightField.heights;
 
-    const int radius = std::clamp(static_cast<int>(std::lround(settings.brushRadius)), 2, 8);
+    const int radius = std::clamp(static_cast<int>(std::lround(m_brushRadius)), 2, 8);
     initializeBrush(mapSize, radius);
-    m_prng.seed(settings.seedOffset.x + settings.seedOffset.y); 
+    m_prng.seed(m_seedOffset.x + m_seedOffset.y); 
 
     std::uniform_real_distribution<float> posDist(0.0f, static_cast<float>(mapSize - 1));
 
-    for (int iteration = 0; iteration < settings.iterations; ++iteration)
+    for (int iteration = 0; iteration < m_iterations; ++iteration)
     {
         float posX = posDist(m_prng);
         float posY = posDist(m_prng);
         float dirX = 0.0f;
         float dirY = 0.0f;
-        float speed = settings.initialSpeed;
-        float water = settings.initialWaterVolume;
+        float speed = m_initialSpeed;
+        float water = m_initialWaterVolume;
         float sediment = 0.0f;
 
-        for (int lifetime = 0; lifetime < settings.maxDropletLifetime; ++lifetime)
+        for (int lifetime = 0; lifetime < m_maxDropletLifetime; ++lifetime)
         {
             const int nodeX = static_cast<int>(posX);
             const int nodeY = static_cast<int>(posY);
@@ -122,8 +122,8 @@ void HydraulicErosion::apply(TerrainHeightField& heightField, const NoiseGenerat
 
             const HeightAndGradient hg = calculateHeightAndGradient(heights, mapSize, posX, posY);
 
-            dirX = dirX * settings.inertia - hg.gradientX * (1.0f - settings.inertia);
-            dirY = dirY * settings.inertia - hg.gradientY * (1.0f - settings.inertia);
+            dirX = dirX * m_inertia - hg.gradientX * (1.0f - m_inertia);
+            dirY = dirY * m_inertia - hg.gradientY * (1.0f - m_inertia);
 
             const float len = std::sqrt(dirX * dirX + dirY * dirY);
             if (len != 0.0f)
@@ -146,14 +146,14 @@ void HydraulicErosion::apply(TerrainHeightField& heightField, const NoiseGenerat
             const float deltaHeight = newHeight - hg.height;
 
             const float sedimentCapacity = std::max(
-                -deltaHeight * speed * water * settings.sedimentCapacity,
-                settings.minSedimentCapacity);
+                -deltaHeight * speed * water * m_sedimentCapacity,
+                m_minSedimentCapacity);
 
             if (sediment > sedimentCapacity || deltaHeight > 0.0f)
             {
                 const float amountToDeposit = (deltaHeight > 0.0f)
                     ? std::min(deltaHeight, sediment)
-                    : (sediment - sedimentCapacity) * settings.depositionSpeed;
+                    : (sediment - sedimentCapacity) * m_depositionSpeed;
                 sediment -= amountToDeposit;
 
                 heights[dropletIndex]               += amountToDeposit * (1 - cellOffsetX) * (1 - cellOffsetY);
@@ -164,7 +164,7 @@ void HydraulicErosion::apply(TerrainHeightField& heightField, const NoiseGenerat
             else
             {
                 const float amountToErode = std::min(
-                    (sedimentCapacity - sediment) * settings.erosionStrength, -deltaHeight);
+                    (sedimentCapacity - sediment) * m_erosionStrength, -deltaHeight);
 
                 const auto& brushIndices = m_brushIndices[dropletIndex];
                 const auto& brushWeights = m_brushWeights[dropletIndex];
@@ -181,8 +181,8 @@ void HydraulicErosion::apply(TerrainHeightField& heightField, const NoiseGenerat
                 }
             }
 
-            speed = std::sqrt(std::max(0.0f, speed * speed + deltaHeight * settings.gravity));
-            water *= (1.0f - settings.evaporationRate);
+            speed = std::sqrt(std::max(0.0f, speed * speed + deltaHeight * m_gravity));
+            water *= (1.0f - m_evaporationRate);
         }
     }
 
@@ -190,7 +190,7 @@ void HydraulicErosion::apply(TerrainHeightField& heightField, const NoiseGenerat
     heightField.minHeight = *minIt;
     heightField.maxHeight = *maxIt;
 
-    std::cout << "Hydraulic erosion applied (" << settings.iterations << " droplets). "
+    std::cout << "Hydraulic erosion applied (" << m_iterations << " droplets). "
               << "New min height: " << heightField.minHeight
               << ", new max height: " << heightField.maxHeight << std::endl;
 }

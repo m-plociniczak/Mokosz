@@ -2,7 +2,7 @@
 
 #include "NomralizeHeightMap.hpp"
 
-void NomralizeHeightMap::apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings)
+void NomralizeHeightMap::apply(TerrainHeightField& heightField)
 {
     float minHeight = heightField.minHeight;
     float maxHeight = heightField.maxHeight;
@@ -19,8 +19,11 @@ void NomralizeHeightMap::apply(TerrainHeightField& heightField, const NoiseGener
             {
                 std::cout << "Normalized height out of bounds at (" << x << ", " << z << "): " << normalizedHeight << std::endl;
             }
+
+            heightField.minHeight = std::min(heightField.minHeight, normalizedHeight);
+            heightField.maxHeight = std::max(heightField.maxHeight, normalizedHeight);
         }
     }
 
-    std::cout << "Height map normalized. New min height: " << 0.0f << ", New max height: " << 1.0f << std::endl;
+    std::cout << "Height map normalized. New min height: " << heightField.minHeight << ", New max height: " << heightField.maxHeight << std::endl;
 }

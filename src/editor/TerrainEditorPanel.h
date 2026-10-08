@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "../terrain/NoiseGenerator.h"
+#include "../terrain/TerrainPipeline.h"
 #include "../renderer/Mesh.h"
 #include <terrain/TerrainWorldGenerator.hpp>
 #include <terrain/TerrainLodManager.hpp>
@@ -20,6 +21,8 @@ public:
                         int resolution,
                         const WorldGenerationParams& worldGenerationParams,
                         const TerrainWorldGenerator& worldGenerator,
+                        NoiseGenerator& noiseGenerator,
+                        TerrainPipeline& pipeline,
                         const std::shared_ptr<ChunkBoundaryRenderer>& chunkBoundaryRenderer,
                         std::vector<std::shared_ptr<Texture>> textures = {},
                         const NoiseGenerator::Settings& initialSettings = NoiseGenerator::Settings());
@@ -33,7 +36,8 @@ private:
     std::shared_ptr<ChunkBoundaryRenderer> m_chunkBoundaryRenderer;
     std::shared_ptr<TerrainCollider>      m_terrainCollider = nullptr;
     std::vector<std::shared_ptr<Texture>> m_textures;
-    NoiseGenerator m_noise;
+    NoiseGenerator& m_noise;
+    TerrainPipeline& m_pipeline;
     NoiseGenerator::Settings m_settings;
     WorldGenerationParams m_params;
     TerrainWorldGenerator m_worldGenerator;

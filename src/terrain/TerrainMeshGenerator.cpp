@@ -28,7 +28,7 @@ Mesh TerrainMeshGenerator::generatePatch(const NoiseGenerator& noise,
                                           int resolution,
                                           std::vector<std::shared_ptr<Texture>> textures)
 {
-    TerrainPipeline pipeline;
+    TerrainPipeline pipeline(noise);
     const TerrainHeightField heightField = pipeline.run(noise, origin, size, resolution);
 
     const int pointsPerAxis     = heightField.pointsPerAxis;

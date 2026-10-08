@@ -98,21 +98,29 @@ Mesh TerrainWorldGenerator::buildChunkMesh(const TerrainHeightField& chunkHeight
 
 
 
-TerrainHeightField TerrainWorldGenerator::generateMasterHeightField(const NoiseGenerator& noise, const WorldGenerationParams& params) const
+TerrainHeightField TerrainWorldGenerator::generateMasterHeightField(
+    const NoiseGenerator& noise,
+    const WorldGenerationParams& params,
+    const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages) const
 {
     const int resolution = params.chunksX * params.chunkResolution;
 
-    TerrainPipeline pipeline;
-    TerrainHeightField heightField = pipeline.run(noise, params.worldOrigin, params.chunkWorldSize * params.chunksX, resolution);
+    TerrainPipeline pipeline(noise);
+    TerrainHeightField heightField = pipeline.run(
+        noise, params.worldOrigin, params.chunkWorldSize * params.chunksX, resolution, stages);
 
     return heightField;
 
 }
 
-Mesh TerrainWorldGenerator::generateMasterMesh(const NoiseGenerator& noise, const WorldGenerationParams& params, std::vector<std::shared_ptr<Texture>> textures) const
+Mesh TerrainWorldGenerator::generateMasterMesh(
+    const NoiseGenerator& noise,
+    const WorldGenerationParams& params,
+    std::vector<std::shared_ptr<Texture>> textures,
+    const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages) const
 {
 
-    TerrainHeightField heightField = generateMasterHeightField(noise, params);
+    TerrainHeightField heightField = generateMasterHeightField(noise, params, stages);
     const int pointsPerAxis = heightField.pointsPerAxis;
     const float cellSize    = heightField.cellSize;
     const int resolution = params.chunksX * params.chunkResolution;
@@ -168,9 +176,14 @@ Mesh TerrainWorldGenerator::generateMasterMesh(const NoiseGenerator& noise, cons
 
 }
 
-std::vector<Mesh> TerrainWorldGenerator::sliceInChunks(const NoiseGenerator& noise, const WorldGenerationParams& params,std::vector<TerrainHeightField>* outHeightFields, std::vector<std::shared_ptr<Texture>> textures) const
+std::vector<Mesh> TerrainWorldGenerator::sliceInChunks(
+    const NoiseGenerator& noise,
+    const WorldGenerationParams& params,
+    std::vector<TerrainHeightField>* outHeightFields,
+    std::vector<std::shared_ptr<Texture>> textures,
+    const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages) const
 {
-    TerrainHeightField master = generateMasterHeightField(noise, params);
+    TerrainHeightField master = generateMasterHeightField(noise, params, stages);
 
     const int res = params.chunkResolution;
     const int pointsPerChunkAxis = res + 1;
@@ -219,9 +232,15 @@ std::vector<Mesh> TerrainWorldGenerator::sliceInChunks(const NoiseGenerator& noi
 }
 
 
-std::vector<std::vector<Mesh>> TerrainWorldGenerator::sliceInChunksWithLods(const NoiseGenerator& noise, const WorldGenerationParams& params, const std::vector<int>& lodStrides, std::vector<TerrainHeightField>* outHeightFields, std::vector<std::shared_ptr<Texture>> textures) const
+std::vector<std::vector<Mesh>> TerrainWorldGenerator::sliceInChunksWithLods(
+    const NoiseGenerator& noise,
+    const WorldGenerationParams& params,
+    const std::vector<int>& lodStrides,
+    std::vector<TerrainHeightField>* outHeightFields,
+    std::vector<std::shared_ptr<Texture>> textures,
+    const std::vector<std::shared_ptr<TerrainPipelineStage>>& stages) const
 {
-    TerrainHeightField master = generateMasterHeightField(noise, params);
+    TerrainHeightField master = generateMasterHeightField(noise, params, stages);
 
     const int res = params.chunkResolution;
     const int pointsPerChunkAxis = res + 1;
@@ -286,5 +305,4 @@ std::vector<std::vector<Mesh>> TerrainWorldGenerator::sliceInChunksWithLods(cons
     
 
 }
-
 

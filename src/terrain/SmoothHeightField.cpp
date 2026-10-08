@@ -4,7 +4,7 @@ SmoothHeightField::SmoothHeightField(int kernelRadius)
     : m_kernelRadius(kernelRadius)
 {}
 
-void SmoothHeightField::apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings)
+void SmoothHeightField::apply(TerrainHeightField& heightField)
 {
         const int mapSize = heightField.pointsPerAxis;
         if (mapSize < 3) return;

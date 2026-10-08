@@ -9,5 +9,5 @@ class TerrainPipelineStage
 {
 public:
     virtual ~TerrainPipelineStage() = default;
-    virtual void apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings) = 0;
+    virtual void apply(TerrainHeightField& heightField) = 0;
 };

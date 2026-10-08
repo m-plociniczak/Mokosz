@@ -5,5 +5,12 @@
 class CreateNoiseMapObject : public TerrainPipelineStage
 {
 public:
-    void apply(TerrainHeightField& heightField, const NoiseGenerator::Settings& settings) override;
+    CreateNoiseMapObject(const NoiseGenerator& noiseGenerator) : m_noiseGenerator(&noiseGenerator) {}
+    void apply(TerrainHeightField& heightField) override;
+
+    const NoiseGenerator& getNoiseGenerator() const { return *m_noiseGenerator; }
+    void setNoiseGenerator(const NoiseGenerator& noiseGenerator) { m_noiseGenerator = &noiseGenerator; }
+
+private:
+    const NoiseGenerator* m_noiseGenerator;
 };

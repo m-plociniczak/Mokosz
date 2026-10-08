@@ -8,9 +8,9 @@
 
 #include <vector>
 
-TerrainPipeline::TerrainPipeline()
+TerrainPipeline::TerrainPipeline(const NoiseGenerator& noise)
 {
-    m_stages.push_back(std::make_shared<CreateNoiseMapObject>());
+    m_stages.push_back(std::make_shared<CreateNoiseMapObject>(noise));
     m_stages.push_back(std::make_shared<NomralizeHeightMap>());
     m_stages.push_back(std::make_shared<ApplyIslandMask>());
     m_stages.push_back(std::make_shared<HydraulicErosion>());
@@ -32,11 +32,12 @@ TerrainHeightField TerrainPipeline::run(const NoiseGenerator& noise,
     heightField.heights.resize(static_cast<std::size_t>(heightField.pointsPerAxis) * heightField.pointsPerAxis, 0.0f);
 
     const std::vector<std::shared_ptr<TerrainPipelineStage>> activeStages = stages.empty() ? m_stages : stages;
-    const NoiseGenerator::Settings settings = noise.settings();
 
     for (const auto& stage : activeStages)
     {
-        stage->apply(heightField, settings);
+        if (auto noiseStage = std::dynamic_pointer_cast<CreateNoiseMapObject>(stage))
+            noiseStage->setNoiseGenerator(noise);
+        stage->apply(heightField);
     }
 
     return heightField;
